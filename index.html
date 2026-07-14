@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Tabla Compositions</title>
+<style>
+  /* ---------- Theme tokens ---------- */
+  :root {
+    --bg:        #fafaf7;
+    --panel:     #ffffff;
+    --text:      #1a1a1a;
+    --muted:     #6b6b6b;
+    --border:    #e3e1d8;
+    --accent:    #8a4a2a;          /* warm brown — tabla book feel */
+    --accent-2:  #b96b3a;
+    --danger:    #b13a3a;
+    --row-hover: #f3efe6;
+    --shadow:    0 1px 2px rgba(0,0,0,.05), 0 8px 24px rgba(0,0,0,.08);
+    --radius:    6px;
+    --gap:       12px;
+    --font:      -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  :root[data-theme="dark"] {
+    --bg:        #15140f;
+    --panel:     #1f1d18;
+    --text:      #ece8df;
+    --muted:     #9a9489;
+    --border:    #2e2a23;
+    --accent:    #d18a55;
+    --accent-2:  #e2a070;
+    --danger:    #e07070;
+    --row-hover: #26231c;
+    --shadow:    0 1px 2px rgba(0,0,0,.4), 0 8px 24px rgba(0,0,0,.5);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font: 14px/1.45 var(--font);
+    min-height: 100vh;
+  }
+  button, input, select, textarea { font: inherit; color: inherit; }
+
+  /* ---------- Layout ---------- */
+  header {
+    padding: 14px 22px;
+    background: var(--panel);
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: var(--gap);
+  }
+  header h1 { font-size: 18px; margin: 0; font-weight: 600; letter-spacing: .2px; }
+  header .spacer { flex: 1; }
+  header button { white-space: nowrap; }
+
+  .standalone-banner {
+    background: #fff7e0;
+    color: #5a4a00;
+    border-bottom: 1px solid #e8dba0;
+    padding: 8px 22px;
+    font-size: 13px;
+    display: flex; gap: 10px; align-items: center;
+  }
+  :root[data-theme="dark"] .standalone-banner { background: #3a2f10; color: #f3e0a0; border-color: #4a3d18; }
+  .standalone-banner input { padding: 4px 8px; border: 1px solid #d8c66a; border-radius: 4px; background: white; color: #1a1a1a; }
+  :root[data-theme="dark"] .standalone-banner input { background: #1f1d18; color: var(--text); border-color: #4a3d18; }
+
+  main { padding: 18px 22px 60px; max-width: 1300px; margin: 0 auto; }
+
+  .toolbar {
+    display: flex; gap: var(--gap); align-items: center; flex-wrap: wrap;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 12px;
+    margin-bottom: 14px;
+  }
+  .toolbar .group { display: flex; align-items: center; gap: 6px; }
+  .toolbar label { color: var(--muted); font-size: 12px; }
+  .toolbar input[type=text], .toolbar input[type=search], .toolbar select {
+    background: var(--bg);
+    color: var(--text);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 5px 8px;
+    min-width: 0;
+  }
+  .toolbar input[type=search] { min-width: 200px; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 10px; border-radius: 999px;
+    background: var(--bg); border: 1px solid var(--border);
+    cursor: pointer; user-select: none; font-size: 13px;
+  }
+  .chip.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .chip.add { border-style: dashed; color: var(--muted); }
+
+  .btn {
+    background: var(--accent); color: #fff; border: 0; border-radius: 4px;
+    padding: 6px 12px; cursor: pointer; font-weight: 500;
+  }
+  .btn:hover { background: var(--accent-2); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid var(--border); }
+  .btn.ghost:hover { background: var(--row-hover); }
+  .btn.danger { background: var(--danger); }
+  .btn.danger:hover { background: #d05a5a; }
+  .btn.icon { padding: 4px 8px; font-size: 12px; }
+
+  /* ---------- Table ---------- */
+  table { width: 100%; border-collapse: collapse; background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { background: var(--row-hover); font-size: 12px; text-transform: uppercase; letter-spacing: .5px; color: var(--muted); cursor: pointer; user-select: none; }
+  th.no-sort { cursor: default; }
+  tbody tr { cursor: pointer; }
+  tbody tr:hover { background: var(--row-hover); }
+  tbody tr:last-child td { border-bottom: 0; }
+  td .truncate { max-width: 280px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: block; }
+  .empty { text-align: center; color: var(--muted); padding: 40px 20px; }
+
+  /* ---------- Drawer ---------- */
+  .scrim {
+    position: fixed; inset: 0; background: rgba(0,0,0,.35);
+    opacity: 0; pointer-events: none; transition: opacity .15s;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+  .drawer {
+    position: fixed; top: 0; right: 0; bottom: 0; width: min(520px, 100vw);
+    background: var(--panel); border-left: 1px solid var(--border);
+    box-shadow: var(--shadow);
+    transform: translateX(100%); transition: transform .18s ease;
+    display: flex; flex-direction: column;
+  }
+  .drawer.open { transform: translateX(0); }
+  .drawer header { border-bottom: 1px solid var(--border); }
+  .drawer .body { padding: 16px 18px; overflow: auto; flex: 1; }
+  .drawer footer { padding: 12px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: space-between; }
+
+  .field { display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; position: relative; }
+  .field label { font-size: 12px; color: var(--muted); }
+  .field .req::after { content: " *"; color: var(--danger); }
+  .field input, .field select, .field textarea {
+    background: var(--bg); color: var(--text);
+    border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;
+  }
+  .field textarea { min-height: 70px; resize: vertical; }
+  .suggest {
+    position: absolute; top: 100%; left: 0; right: 0; z-index: 10;
+    background: var(--panel); border: 1px solid var(--border); border-radius: 4px;
+    max-height: 180px; overflow: auto; box-shadow: var(--shadow);
+  }
+  .suggest div { padding: 6px 10px; cursor: pointer; }
+  .suggest div:hover, .suggest div.active { background: var(--row-hover); }
+
+  /* ---------- Gallery ---------- */
+  .gallery { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 10px; margin-top: 8px; }
+  .thumb {
+    position: relative; aspect-ratio: 1 / 1; background: var(--bg);
+    border: 1px solid var(--border); border-radius: 4px; overflow: hidden;
+    display: flex; align-items: center; justify-content: center;
+    cursor: pointer; color: var(--muted);
+  }
+  .thumb img { width: 100%; height: 100%; object-fit: cover; }
+  .thumb .pdf { font-size: 28px; }
+  .thumb .name {
+    position: absolute; left: 0; right: 0; bottom: 0; padding: 2px 6px;
+    font-size: 11px; background: rgba(0,0,0,.55); color: #fff; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .thumb .x {
+    position: absolute; top: 4px; right: 4px;
+    background: rgba(0,0,0,.6); color: #fff; border: 0; border-radius: 50%;
+    width: 20px; height: 20px; line-height: 18px; text-align: center; cursor: pointer; font-size: 13px;
+  }
+  .dropzone {
+    margin-top: 8px; border: 1.5px dashed var(--border); border-radius: 4px;
+    padding: 18px; text-align: center; color: var(--muted);
+  }
+  .dropzone.over { background: var(--row-hover); border-color: var(--accent); color: var(--text); }
+  .dropzone input[type=file] { display: none; }
+
+  /* ---------- Lightbox ---------- */
+  .lightbox {
+    position: fixed; inset: 0; background: rgba(0,0,0,.85);
+    display: none; align-items: center; justify-content: center;
+    z-index: 1000; padding: 20px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox img, .lightbox embed, .lightbox object { max-width: 100%; max-height: 100%; background: white; }
+  .lightbox .close {
+    position: absolute; top: 12px; right: 16px;
+    background: transparent; color: #fff; border: 1px solid rgba(255,255,255,.4);
+    border-radius: 4px; padding: 4px 10px; cursor: pointer;
+  }
+  .lightbox .filename { position: absolute; bottom: 14px; left: 0; right: 0; text-align: center; color: #fff; font-size: 12px; }
+
+  /* ---------- Modal ---------- */
+  .modal {
+    position: fixed; inset: 0; background: rgba(0,0,0,.4);
+    display: none; align-items: center; justify-content: center; z-index: 999;
+  }
+  .modal.open { display: flex; }
+  .modal .panel {
+    background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 18px; width: min(420px, 92vw); box-shadow: var(--shadow);
+  }
+  .modal h2 { margin: 0 0 12px; font-size: 16px; }
+
+  .toast {
+    position: fixed; bottom: 18px; left: 50%; transform: translateX(-50%);
+    background: var(--text); color: var(--bg); padding: 8px 14px; border-radius: 4px;
+    box-shadow: var(--shadow); font-size: 13px; z-index: 1100;
+    opacity: 0; transition: opacity .15s; pointer-events: none;
+  }
+  .toast.show { opacity: 1; }
+  .toast.error { background: var(--danger); color: #fff; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>🥁 Tabla Compositions</h1>
+  <span class="spacer"></span>
+  <button class="btn ghost" id="btn-new" title="New composition (n)">+ Add composition</button>
+  <button class="btn ghost" id="btn-export" title="Export to CSV">Export CSV</button>
+  <button class="btn ghost" id="btn-theme" title="Toggle theme">☾</button>
+</header>
+
+<div class="standalone-banner" id="standalone-banner" hidden>
+  Running standalone — server URL:
+  <input type="text" id="server-url" value="http://localhost:5050" />
+  <button class="btn" id="btn-connect">Connect</button>
+  <span id="conn-status"></span>
+</div>
+
+<main>
+  <div class="toolbar">
+    <div class="group">
+      <label for="q">Search</label>
+      <input type="search" id="q" placeholder="name or notes…  (press / )" />
+    </div>
+    <div class="group">
+      <label>Type</label>
+      <div class="chips" id="type-chips"></div>
+    </div>
+    <div class="group">
+      <label for="f-taal">Taal</label>
+      <input type="text" id="f-taal" list="taal-list" placeholder="any" />
+      <datalist id="taal-list"></datalist>
+    </div>
+    <div class="group">
+      <label for="f-speed">Speed group</label>
+      <input type="text" id="f-speed" list="speed-list" placeholder="any" />
+      <datalist id="speed-list"></datalist>
+    </div>
+  </div>
+
+  <table id="grid">
+    <thead>
+      <tr>
+        <th data-sort="type">Type</th>
+        <th data-sort="name">Name</th>
+        <th data-sort="taal">Taal</th>
+        <th data-sort="speed_group">Speed</th>
+        <th data-sort="bol_type">Bol type</th>
+        <th data-sort="gharana">Gharana</th>
+        <th data-sort="miscell_info">Miscell</th>
+        <th data-sort="updated_at">Updated</th>
+        <th class="no-sort">Actions</th>
+      </tr>
+    </thead>
+    <tbody id="grid-body"></tbody>
+  </table>
+  <div class="empty" id="empty-state" hidden></div>
+</main>
+
+<!-- Drawer for add / edit / view -->
+<div class="scrim" id="scrim"></div>
+<aside class="drawer" id="drawer" aria-hidden="true">
+  <header>
+    <h1 id="drawer-title">New composition</h1>
+    <span class="spacer"></span>
+    <button class="btn ghost" id="drawer-close" title="Close (Esc)">✕</button>
+  </header>
+  <div class="body" id="drawer-body">
+    <div class="field">
+      <label for="d-type" class="req">Type</label>
+      <select id="d-type"></select>
+    </div>
+    <div class="field" id="f-name-field">
+      <label for="d-name" class="req">Name</label>
+      <input type="text" id="d-name" />
+    </div>
+    <div class="field" id="f-taal-field">
+      <label for="d-taal" class="req">Taal</label>
+      <input type="text" id="d-taal" list="taal-list" autocomplete="off" />
+    </div>
+    <div class="field" id="f-speed-field">
+      <label for="d-speed" class="req">Speed group</label>
+      <input type="text" id="d-speed" list="speed-list" autocomplete="off" />
+    </div>
+    <div class="field"><label for="d-bol">Bol type</label><input type="text" id="d-bol" /></div>
+    <div class="field"><label for="d-gharana">Gharana</label><input type="text" id="d-gharana" /></div>
+    <div class="field"><label for="d-misc">Miscell info</label><textarea id="d-misc"></textarea></div>
+
+    <div id="attach-section" hidden>
+      <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin: 18px 0 4px;">Attachments</h3>
+      <div class="gallery" id="gallery"></div>
+      <label class="dropzone" id="dropzone">
+        <div>Drop image / PDF here, or click to choose</div>
+        <div style="font-size:11px; margin-top:4px;">JPG, PNG, WebP, PDF — up to 10 MB each</div>
+        <input type="file" id="file-input" accept="image/jpeg,image/png,image/webp,application/pdf" />
+      </label>
+    </div>
+  </div>
+  <footer>
+    <button class="btn danger" id="drawer-delete" hidden>Delete</button>
+    <span class="spacer"></span>
+    <button class="btn ghost" id="drawer-cancel">Cancel</button>
+    <button class="btn" id="drawer-save">Save</button>
+  </footer>
+</aside>
+
+<!-- Add type modal -->
+<div class="modal" id="type-modal">
+  <div class="panel">
+    <h2>Add composition type</h2>
+    <div class="field"><label for="t-label" class="req">Label</label><input type="text" id="t-label" placeholder="e.g. Tukda" /></div>
+    <div class="field"><label for="t-slug" class="req">Slug</label><input type="text" id="t-slug" placeholder="e.g. tukda" /></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end;">
+      <button class="btn ghost" id="t-cancel">Cancel</button>
+      <button class="btn" id="t-save">Add</button>
+    </div>
+  </div>
+</div>
+
+<!-- Lightbox -->
+<div class="lightbox" id="lightbox">
+  <button class="close" id="lb-close">Close ✕</button>
+  <div id="lb-content"></div>
+  <div class="filename" id="lb-name"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- State ----------
+  const state = {
+    apiBase: null,            // resolved API base (origin or user-entered)
+    compositions: [],
+    types: [],
+    filter: { types: new Set(), taal: '', speed_group: '', q: '' },
+    sort: { key: 'updated_at', dir: 'desc' },
+    editing: null,            // composition object when drawer is open (null = new)
+  };
+
+  // ---------- DOM refs ----------
+  const $ = (id) => document.getElementById(id);
+  const els = {
+    toast: $('toast'),
+    gridBody: $('grid-body'),
+    empty: $('empty-state'),
+    typeChips: $('type-chips'),
+    taalList: $('taal-list'),
+    speedList: $('speed-list'),
+    q: $('q'), fTaal: $('f-taal'), fSpeed: $('f-speed'),
+    btnNew: $('btn-new'), btnExport: $('btn-export'), btnTheme: $('btn-theme'),
+    banner: $('standalone-banner'), serverUrl: $('server-url'),
+    btnConnect: $('btn-connect'), connStatus: $('conn-status'),
+    drawer: $('drawer'), scrim: $('scrim'),
+    dTitle: $('drawer-title'), dClose: $('drawer-close'), dCancel: $('drawer-cancel'),
+    dSave: $('drawer-save'), dDelete: $('drawer-delete'),
+    dType: $('d-type'), dName: $('d-name'), dTaal: $('d-taal'), dSpeed: $('d-speed'),
+    dBol: $('d-bol'), dGharana: $('d-gharana'), dMisc: $('d-misc'),
+    attachSection: $('attach-section'), gallery: $('gallery'),
+    dropzone: $('dropzone'), fileInput: $('file-input'),
+    lightbox: $('lightbox'), lbContent: $('lb-content'), lbName: $('lb-name'), lbClose: $('lb-close'),
+    typeModal: $('type-modal'),
+    tLabel: $('t-label'), tSlug: $('t-slug'),
+    tCancel: $('t-cancel'), tSave: $('t-save'),
+  };
+
+  // ---------- API ----------
+  function resolveApiBase() {
+    if (location.protocol === 'file:') return null;            // standalone, must ask user
+    return location.origin;                                    // served by the app
+  }
+
+  function api(path, opts = {}) {
+    opts.headers = Object.assign({ 'Content-Type': 'application/json' }, opts.headers || {});
+    if (opts.body && typeof opts.body !== 'string') opts.body = JSON.stringify(opts.body);
+    return fetch(state.apiBase + path, opts).then(async (r) => {
+      if (!r.ok) {
+        let msg = r.statusText;
+        try { const j = await r.json(); if (j.error) msg = j.error; } catch (_) {}
+        throw new Error(msg);
+      }
+      if (r.status === 204) return null;
+      const ct = r.headers.get('content-type') || '';
+      return ct.includes('application/json') ? r.json() : r.text();
+    });
+  }
+
+  function apiForm(path, formData) {
+    return fetch(state.apiBase + path, { method: 'POST', body: formData })
+      .then(async (r) => {
+        if (!r.ok) {
+          let msg = r.statusText;
+          try { const j = await r.json(); if (j.error) msg = j.error; } catch (_) {}
+          throw new Error(msg);
+        }
+        return r.json();
+      });
+  }
+
+  // ---------- Toast ----------
+  let toastTimer = null;
+  function toast(msg, isError = false) {
+    els.toast.textContent = msg;
+    els.toast.classList.toggle('error', !!isError);
+    els.toast.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => els.toast.classList.remove('show'), 2400);
+  }
+
+  // ---------- Theme ----------
+  function applyTheme(t) {
+    document.documentElement.dataset.theme = t;
+    localStorage.setItem('theme', t);
+    els.btnTheme.textContent = t === 'dark' ? '☀' : '☾';
+  }
+  els.btnTheme.addEventListener('click', () => applyTheme(
+    document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'
+  ));
+  applyTheme(localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+  // ---------- Standalone banner ----------
+  function showStandaloneBanner() {
+    els.banner.hidden = false;
+    els.connStatus.textContent = '';
+    els.serverUrl.value = localStorage.getItem('apiBase') || 'http://localhost:5050';
+    els.btnConnect.addEventListener('click', () => {
+      const v = els.serverUrl.value.trim().replace(/\/+$/, '');
+      if (!v) return;
+      state.apiBase = v;
+      localStorage.setItem('apiBase', v);
+      els.connStatus.textContent = 'Connecting…';
+      boot().then(() => { els.connStatus.textContent = 'Connected.'; })
+            .catch((e) => { els.connStatus.textContent = 'Failed: ' + e.message; els.connStatus.style.color = 'var(--danger)'; });
+    });
+  }
+
+  // ---------- URL ↔ filters ----------
+  function readFiltersFromURL() {
+    const u = new URL(location.href);
+    const t = u.searchParams.get('type'); if (t) t.split(',').forEach((x) => state.filter.types.add(x));
+    state.filter.taal       = u.searchParams.get('taal') || '';
+    state.filter.speed_group = u.searchParams.get('speed_group') || '';
+    state.filter.q          = u.searchParams.get('q') || '';
+  }
+  function writeFiltersToURL() {
+    const u = new URL(location.href);
+    const sp = u.searchParams;
+    if (state.filter.types.size) sp.set('type', [...state.filter.types].join(',')); else sp.delete('type');
+    if (state.filter.taal) sp.set('taal', state.filter.taal); else sp.delete('taal');
+    if (state.filter.speed_group) sp.set('speed_group', state.filter.speed_group); else sp.delete('speed_group');
+    if (state.filter.q) sp.set('q', state.filter.q); else sp.delete('q');
+    history.replaceState(null, '', u.toString());
+  }
+  function syncFiltersToUI() {
+    els.q.value = state.filter.q;
+    els.fTaal.value = state.filter.taal;
+    els.fSpeed.value = state.filter.speed_group;
+    els.typeChips.querySelectorAll('.chip').forEach((c) => {
+      c.classList.toggle('active', state.filter.types.has(c.dataset.type));
+    });
+  }
+
+  // ---------- Rendering ----------
+  function rebuildTypeChips() {
+    els.typeChips.innerHTML = '';
+    state.types.forEach((t) => {
+      const c = document.createElement('span');
+      c.className = 'chip';
+      c.dataset.type = t.name;
+      c.textContent = t.label;
+      c.addEventListener('click', () => {
+        if (state.filter.types.has(t.name)) state.filter.types.delete(t.name);
+        else state.filter.types.add(t.name);
+        syncFiltersToUI(); writeFiltersToURL(); renderTable();
+      });
+      els.typeChips.appendChild(c);
+    });
+    const add = document.createElement('span');
+    add.className = 'chip add';
+    add.textContent = '+ type';
+    add.addEventListener('click', openTypeModal);
+    els.typeChips.appendChild(add);
+  }
+
+  function rebuildDatalists() {
+    const taals = uniq(state.compositions.map((c) => c.taal).filter(Boolean)).sort();
+    const speeds = uniq(state.compositions.map((c) => c.speed_group).filter(Boolean)).sort();
+    const fill = (dl, vals) => { dl.innerHTML = vals.map((v) => `<option value="${escapeAttr(v)}">`).join(''); };
+    fill(els.taalList, taals); fill(els.speedList, speeds);
+  }
+  function uniq(arr) { return [...new Set(arr)]; }
+  function escapeAttr(s) { return String(s).replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/</g,'&lt;'); }
+  function escapeHtml(s) { return String(s ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+  function fmtDate(iso) { if (!iso) return ''; const d = new Date(iso); return d.toLocaleString(); }
+
+  function filteredCompositions() {
+    const f = state.filter;
+    return state.compositions.filter((c) => {
+      if (f.types.size && !f.types.has(c.type)) return false;
+      if (f.taal && c.taal !== f.taal) return false;
+      if (f.speed_group && c.speed_group !== f.speed_group) return false;
+      if (f.q) {
+        const q = f.q.toLowerCase();
+        if (!(c.name.toLowerCase().includes(q) || (c.miscell_info || '').toLowerCase().includes(q))) return false;
+      }
+      return true;
+    });
+  }
+  function sortedCompositions(arr) {
+    const { key, dir } = state.sort;
+    const mult = dir === 'asc' ? 1 : -1;
+    return [...arr].sort((a, b) => {
+      const av = (a[key] ?? '').toString().toLowerCase();
+      const bv = (b[key] ?? '').toString().toLowerCase();
+      if (av < bv) return -1 * mult;
+      if (av > bv) return  1 * mult;
+      return 0;
+    });
+  }
+
+  function renderTable() {
+    const rows = sortedCompositions(filteredCompositions());
+    els.gridBody.innerHTML = '';
+    if (state.compositions.length === 0) {
+      els.empty.hidden = false;
+      els.empty.textContent = 'No compositions yet. Click "Add composition" to start.';
+      return;
+    }
+    if (rows.length === 0) {
+      els.empty.hidden = false;
+      els.empty.textContent = 'No compositions match your filters.';
+      return;
+    }
+    els.empty.hidden = true;
+    for (const c of rows) {
+      const tr = document.createElement('tr');
+      tr.dataset.id = c.id;
+      const typeLabel = (state.types.find((t) => t.name === c.type) || {}).label || c.type;
+      tr.innerHTML = `
+        <td>${escapeHtml(typeLabel)}</td>
+        <td>${escapeHtml(c.name)}</td>
+        <td>${escapeHtml(c.taal)}</td>
+        <td>${escapeHtml(c.speed_group)}</td>
+        <td>${escapeHtml(c.bol_type || '')}</td>
+        <td>${escapeHtml(c.gharana || '')}</td>
+        <td><span class="truncate" title="${escapeAttr(c.miscell_info || '')}">${escapeHtml(c.miscell_info || '')}</span></td>
+        <td>${escapeHtml(fmtDate(c.updated_at))}</td>
+        <td><button class="btn ghost icon" data-act="del">Delete</button></td>
+      `;
+      tr.addEventListener('click', (e) => {
+        if (e.target.closest('[data-act="del"]')) return;  // handled below
+        openDrawer(c);
+      });
+      tr.querySelector('[data-act="del"]').addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm(`Delete "${c.name}"? This also removes its attachments.`)) return;
+        try {
+          await api('/api/compositions/' + c.id, { method: 'DELETE' });
+          await loadCompositions();
+          toast('Deleted');
+        } catch (err) { toast(err.message, true); }
+      });
+      els.gridBody.appendChild(tr);
+    }
+  }
+
+  // Sort headers
+  document.querySelectorAll('th[data-sort]').forEach((th) => {
+    th.addEventListener('click', () => {
+      const k = th.dataset.sort;
+      if (state.sort.key === k) state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
+      else { state.sort.key = k; state.sort.dir = 'asc'; }
+      renderTable();
+    });
+  });
+
+  // ---------- Filters events ----------
+  let qTimer = null;
+  els.q.addEventListener('input', () => {
+    clearTimeout(qTimer);
+    qTimer = setTimeout(() => { state.filter.q = els.q.value.trim(); writeFiltersToURL(); renderTable(); }, 120);
+  });
+  els.fTaal.addEventListener('change', () => { state.filter.taal = els.fTaal.value.trim(); writeFiltersToURL(); renderTable(); });
+  els.fSpeed.addEventListener('change', () => { state.filter.speed_group = els.fSpeed.value.trim(); writeFiltersToURL(); renderTable(); });
+
+  // ---------- Drawer ----------
+  function fillTypeSelect() {
+    els.dType.innerHTML = state.types.map((t) => `<option value="${escapeAttr(t.name)}">${escapeHtml(t.label)}</option>`).join('');
+  }
+  function openDrawer(comp = null) {
+    state.editing = comp;
+    els.dTitle.textContent = comp ? 'Edit composition' : 'New composition';
+    fillTypeSelect();
+    els.dType.value     = (comp && comp.type) || (state.types[0] && state.types[0].name) || 'kaida';
+    els.dName.value     = (comp && comp.name) || '';
+    els.dTaal.value     = (comp && comp.taal) || '';
+    els.dSpeed.value    = (comp && comp.speed_group) || '';
+    els.dBol.value      = (comp && comp.bol_type) || '';
+    els.dGharana.value  = (comp && comp.gharana) || '';
+    els.dMisc.value     = (comp && comp.miscell_info) || '';
+    els.dDelete.hidden  = !comp;
+    els.attachSection.hidden = !comp;     // attachments only for existing rows
+    if (comp) renderGallery(comp.attachments || []);
+    els.drawer.classList.add('open');
+    els.scrim.classList.add('open');
+    els.drawer.setAttribute('aria-hidden', 'false');
+    setTimeout(() => els.dName.focus(), 50);
+  }
+  function closeDrawer() {
+    els.drawer.classList.remove('open');
+    els.scrim.classList.remove('open');
+    els.drawer.setAttribute('aria-hidden', 'true');
+    state.editing = null;
+  }
+  els.dClose.addEventListener('click', closeDrawer);
+  els.dCancel.addEventListener('click', closeDrawer);
+  els.scrim.addEventListener('click', closeDrawer);
+
+  els.dSave.addEventListener('click', async () => {
+    const payload = {
+      type:        els.dType.value.trim(),
+      name:        els.dName.value.trim(),
+      taal:        els.dTaal.value.trim(),
+      speed_group: els.dSpeed.value.trim(),
+      bol_type:    els.dBol.value.trim(),
+      gharana:     els.dGharana.value.trim(),
+      miscell_info: els.dMisc.value.trim(),
+    };
+    try {
+      if (state.editing) {
+        await api('/api/compositions/' + state.editing.id, { method: 'PUT', body: payload });
+        toast('Saved');
+      } else {
+        await api('/api/compositions', { method: 'POST', body: payload });
+        toast('Added');
+      }
+      await loadCompositions();
+      closeDrawer();
+    } catch (err) { toast(err.message, true); }
+  });
+
+  els.dDelete.addEventListener('click', async () => {
+    if (!state.editing) return;
+    if (!confirm(`Delete "${state.editing.name}"? This also removes its attachments.`)) return;
+    try {
+      await api('/api/compositions/' + state.editing.id, { method: 'DELETE' });
+      await loadCompositions();
+      closeDrawer();
+      toast('Deleted');
+    } catch (err) { toast(err.message, true); }
+  });
+
+  els.btnNew.addEventListener('click', () => openDrawer(null));
+
+  // ---------- Gallery / uploads ----------
+  function renderGallery(atts) {
+    els.gallery.innerHTML = '';
+    atts.forEach((a) => {
+      const t = document.createElement('div');
+      t.className = 'thumb';
+      t.title = a.filename + '  (' + Math.round(a.size_bytes / 1024) + ' KB)';
+      if (a.mime.startsWith('image/')) {
+        const img = document.createElement('img');
+        img.src = state.apiBase + '/api/attachments/' + a.id;
+        img.alt = a.filename;
+        t.appendChild(img);
+      } else {
+        const pdf = document.createElement('div'); pdf.className = 'pdf'; pdf.textContent = '📄';
+        t.appendChild(pdf);
+      }
+      const name = document.createElement('div'); name.className = 'name'; name.textContent = a.filename;
+      t.appendChild(name);
+      const x = document.createElement('button'); x.className = 'x'; x.textContent = '×'; x.title = 'Delete attachment';
+      x.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        if (!confirm('Delete ' + a.filename + '?')) return;
+        try { await api('/api/attachments/' + a.id, { method: 'DELETE' }); toast('Attachment removed'); await loadCompositions(); }
+        catch (err) { toast(err.message, true); }
+      });
+      t.addEventListener('click', (e) => { if (e.target.closest('.x')) return; openLightbox(a); });
+      t.appendChild(x);
+      els.gallery.appendChild(t);
+    });
+  }
+  function openLightbox(a) {
+    els.lbContent.innerHTML = '';
+    els.lbName.textContent = a.filename;
+    if (a.mime.startsWith('image/')) {
+      const img = document.createElement('img');
+      img.src = state.apiBase + '/api/attachments/' + a.id;
+      els.lbContent.appendChild(img);
+    } else {
+      const obj = document.createElement('object');
+      obj.data = state.apiBase + '/api/attachments/' + a.id;
+      obj.type = a.mime;
+      obj.style.width = '80vw'; obj.style.height = '85vh';
+      els.lbContent.appendChild(obj);
+    }
+    els.lightbox.classList.add('open');
+  }
+  els.lbClose.addEventListener('click', () => els.lightbox.classList.remove('open'));
+  els.lightbox.addEventListener('click', (e) => { if (e.target === els.lightbox) els.lightbox.classList.remove('open'); });
+
+  async function uploadFile(file) {
+    if (!state.editing) return;
+    const fd = new FormData(); fd.append('file', file);
+    try {
+      await apiForm('/api/compositions/' + state.editing.id + '/attachments', fd);
+      await loadCompositions();
+      const updated = state.compositions.find((c) => c.id === state.editing.id);
+      if (updated) { state.editing = updated; renderGallery(updated.attachments || []); }
+      toast('Uploaded ' + file.name);
+    } catch (err) { toast(err.message, true); }
+  }
+  els.dropzone.addEventListener('click', () => els.fileInput.click());
+  els.fileInput.addEventListener('change', () => {
+    [...els.fileInput.files].forEach(uploadFile);
+    els.fileInput.value = '';
+  });
+  ['dragenter', 'dragover'].forEach((ev) => {
+    els.dropzone.addEventListener(ev, (e) => { e.preventDefault(); els.dropzone.classList.add('over'); });
+  });
+  ['dragleave', 'drop'].forEach((ev) => {
+    els.dropzone.addEventListener(ev, (e) => { e.preventDefault(); els.dropzone.classList.remove('over'); });
+  });
+  els.dropzone.addEventListener('drop', (e) => {
+    [...e.dataTransfer.files].forEach(uploadFile);
+  });
+
+  // ---------- Type modal ----------
+  function openTypeModal() {
+    els.tLabel.value = ''; els.tSlug.value = '';
+    els.typeModal.classList.add('open');
+    setTimeout(() => els.tLabel.focus(), 50);
+  }
+  function closeTypeModal() { els.typeModal.classList.remove('open'); }
+  els.tCancel.addEventListener('click', closeTypeModal);
+  els.tLabel.addEventListener('input', () => {
+    if (!els.tSlug.dataset.touched) {
+      els.tSlug.value = els.tLabel.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+    }
+  });
+  els.tSlug.addEventListener('input', () => { els.tSlug.dataset.touched = '1'; });
+  els.tSave.addEventListener('click', async () => {
+    const label = els.tLabel.value.trim();
+    const slug = els.tSlug.value.trim().toLowerCase();
+    if (!label || !slug) { toast('Label and slug are required', true); return; }
+    try {
+      await api('/api/composition_types', { method: 'POST', body: { name: slug, label } });
+      await loadTypes();
+      rebuildTypeChips(); fillTypeSelect();
+      closeTypeModal();
+      toast('Type added');
+    } catch (err) { toast(err.message, true); }
+  });
+
+  // ---------- Export ----------
+  els.btnExport.addEventListener('click', () => {
+    const params = new URLSearchParams();
+    if (state.filter.types.size) params.set('type', [...state.filter.types].join(','));
+    if (state.filter.taal) params.set('taal', state.filter.taal);
+    if (state.filter.speed_group) params.set('speed_group', state.filter.speed_group);
+    if (state.filter.q) params.set('q', state.filter.q);
+    const qs = params.toString();
+    const url = state.apiBase + '/api/export.csv' + (qs ? '?' + qs : '');
+    const a = document.createElement('a');
+    a.href = url; a.download = 'compositions.csv';
+    document.body.appendChild(a); a.click(); a.remove();
+  });
+
+  // ---------- Load ----------
+  async function loadTypes() { state.types = await api('/api/composition_types'); }
+  async function loadCompositions() {
+    const params = new URLSearchParams();
+    if (state.filter.types.size) params.set('type', [...state.filter.types].join(','));
+    if (state.filter.taal) params.set('taal', state.filter.taal);
+    if (state.filter.speed_group) params.set('speed_group', state.filter.speed_group);
+    if (state.filter.q) params.set('q', state.filter.q);
+    const qs = params.toString();
+    state.compositions = await api('/api/compositions' + (qs ? '?' + qs : ''));
+    rebuildDatalists();
+    renderTable();
+  }
+
+  async function boot() {
+    await loadTypes();
+    await loadCompositions();
+    rebuildTypeChips();
+    fillTypeSelect();
+  }
+
+  // ---------- Keyboard ----------
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      if (els.lightbox.classList.contains('open')) { els.lightbox.classList.remove('open'); return; }
+      if (els.typeModal.classList.contains('open')) { closeTypeModal(); return; }
+      if (els.drawer.classList.contains('open')) { closeDrawer(); return; }
+    }
+    if (e.target.matches('input,textarea,select')) return;
+    if (e.key === '/') { e.preventDefault(); els.q.focus(); }
+    else if (e.key.toLowerCase() === 'n') { e.preventDefault(); openDrawer(null); }
+  });
+
+  // ---------- Start ----------
+  state.apiBase = resolveApiBase();
+  if (state.apiBase) {
+    readFiltersFromURL(); syncFiltersToUI();
+    boot().catch((e) => toast('Server error: ' + e.message, true));
+  } else {
+    showStandaloneBanner();
+  }
+})();
+</script>
+</body>
+</html>
