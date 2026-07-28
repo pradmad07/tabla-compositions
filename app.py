@@ -35,6 +35,10 @@ PORT = int(os.environ.get("PORT", "5050"))
 MAX_UPLOAD_BYTES = 10 * 1024 * 1024  # 10 MB
 ALLOWED_MIME = {"image/jpeg", "image/png", "image/webp", "application/pdf"}
 
+# Tiny starter set — just enough so the matcher isn't blank on day one.
+# The user adds their own bols from the UI; the dictionary grows with them.
+SEED_BOLS = ["Dha", "Ghe", "Dhin", "Tin", "Tun", "Dhun", "Ne", "Ti"]
+
 # Seed composition types inserted on first run if the table is empty.
 # Start with only Kaida — user will add Tukda/Rela/etc. from the UI as needed.
 SEED_TYPES = [
@@ -97,7 +101,12 @@ def init_db() -> None:
         );
 
         CREATE INDEX IF NOT EXISTS idx_attachments_comp ON attachments(composition_id);
-        """
+
+        CREATE TABLE IF NOT EXISTS bols (
+            name        TEXT PRIMARY KEY,   -- canonical bol, e.g. "Dha"
+            created_at  TEXT NOT NULL
+        );
+    """
     )
     # Seed composition types if none exist.
     count = cur.execute("SELECT COUNT(*) FROM composition_types").fetchone()[0]
@@ -106,6 +115,14 @@ def init_db() -> None:
         cur.executemany(
             "INSERT INTO composition_types (name, label, created_at) VALUES (?, ?, ?)",
             [(name, label, now) for name, label in SEED_TYPES],
+        )
+    # Seed starter bols if none exist. User-added bols are preserved across restarts.
+    bol_count = cur.execute("SELECT COUNT(*) FROM bols").fetchone()[0]
+    if bol_count == 0:
+        now = now_iso()
+        cur.executemany(
+            "INSERT INTO bols (name, created_at) VALUES (?, ?)",
+            [(b, now) for b in SEED_BOLS],
         )
     conn.commit()
     conn.close()
@@ -199,6 +216,53 @@ def create_type():
     finally:
         conn.close()
     return jsonify({"name": slug, "label": label}), 201
+
+
+# ---- Bols (for dictation) ---- #
+
+
+@app.get("/api/bols")
+def list_bols():
+    conn = get_db()
+    rows = conn.execute("SELECT name FROM bols ORDER BY name").fetchall()
+    conn.close()
+    return jsonify([r["name"] for r in rows])
+
+
+@app.post("/api/bols")
+def add_bol():
+    """Add a single bol to the dictionary. Idempotent — duplicate is a no-op."""
+    data = require_json()
+    name = str(data.get("name", "")).strip()
+    if not name:
+        abort(400, "name is required")
+    if len(name) > 40:
+        abort(400, "bol name too long (max 40 chars)")
+    conn = get_db()
+    try:
+        conn.execute(
+            "INSERT INTO bols (name, created_at) VALUES (?, ?)",
+            (name, now_iso()),
+        )
+        conn.commit()
+    except sqlite3.IntegrityError:
+        pass  # already in the dictionary — fine
+    finally:
+        conn.close()
+    return jsonify({"name": name}), 201
+
+
+@app.delete("/api/bols/<name>")
+def remove_bol(name: str):
+    """Remove a bol from the dictionary."""
+    conn = get_db()
+    cur = conn.execute("DELETE FROM bols WHERE name = ?", (name,))
+    conn.commit()
+    deleted = cur.rowcount > 0
+    conn.close()
+    if not deleted:
+        abort(404, f"Bol {name!r} not found")
+    return ("", 204)
 
 
 # ---- Compositions ---- #

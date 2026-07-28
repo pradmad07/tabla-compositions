@@ -216,6 +216,47 @@
   }
   .toast.show { opacity: 1; }
   .toast.error { background: var(--danger); color: #fff; }
+
+  /* ---------- Dictation ---------- */
+  .dict-status {
+    font-size: 12px; color: var(--muted); min-width: 60px; text-align: center;
+  }
+  .dict-status.live { color: var(--danger); }
+  .field.with-mic { position: relative; }
+  .mic {
+    position: absolute; right: 6px; top: 22px;
+    width: 26px; height: 26px;
+    background: var(--bg); border: 1px solid var(--border); border-radius: 4px;
+    cursor: pointer; font-size: 13px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .mic:hover { background: var(--row-hover); }
+  .mic.live { background: var(--danger); color: #fff; border-color: var(--danger); animation: pulse 1.2s infinite; }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: .55; }
+  }
+  .field.with-mic input,
+  .field.with-mic textarea { padding-right: 38px; }
+
+  .bol-list {
+    display: flex; flex-wrap: wrap; gap: 6px;
+    max-height: 280px; overflow: auto;
+    padding: 4px;
+    border: 1px solid var(--border); border-radius: 4px;
+    background: var(--bg);
+  }
+  .bol-list .bol {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 4px 8px; border-radius: 999px;
+    background: var(--panel); border: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .bol-list .bol .x {
+    background: transparent; border: 0; color: var(--muted);
+    cursor: pointer; padding: 0 2px; font-size: 14px;
+  }
+  .bol-list .bol .x:hover { color: var(--danger); }
 </style>
 </head>
 <body>
@@ -223,6 +264,13 @@
 <header>
   <h1>🥁 Tabla Compositions</h1>
   <span class="spacer"></span>
+  <select id="dict-lang" class="btn ghost" title="Dictation language">
+    <option value="en-IN">en-IN</option>
+    <option value="en-US">en-US</option>
+    <option value="hi-IN">hi-IN</option>
+  </select>
+  <button class="btn ghost" id="btn-bols" title="Manage bol dictionary">🎤 Bols</button>
+  <span id="dict-status" class="dict-status"></span>
   <button class="btn ghost" id="btn-new" title="New composition (n)">+ Add composition</button>
   <button class="btn ghost" id="btn-export" title="Export to CSV">Export CSV</button>
   <button class="btn ghost" id="btn-theme" title="Toggle theme">☾</button>
@@ -289,21 +337,21 @@
       <label for="d-type" class="req">Type</label>
       <select id="d-type"></select>
     </div>
-    <div class="field" id="f-name-field">
+    <div class="field with-mic" id="f-name-field">
       <label for="d-name" class="req">Name</label>
-      <input type="text" id="d-name" />
+      <input type="text" id="d-name" data-mic-vocab="name" />
     </div>
-    <div class="field" id="f-taal-field">
+    <div class="field with-mic" id="f-taal-field">
       <label for="d-taal" class="req">Taal</label>
-      <input type="text" id="d-taal" list="taal-list" autocomplete="off" />
+      <input type="text" id="d-taal" list="taal-list" autocomplete="off" data-mic-vocab="taal" />
     </div>
-    <div class="field" id="f-speed-field">
+    <div class="field with-mic" id="f-speed-field">
       <label for="d-speed" class="req">Speed group</label>
-      <input type="text" id="d-speed" list="speed-list" autocomplete="off" />
+      <input type="text" id="d-speed" list="speed-list" autocomplete="off" data-mic-vocab="speed_group" />
     </div>
-    <div class="field"><label for="d-bol">Bol type</label><input type="text" id="d-bol" /></div>
-    <div class="field"><label for="d-gharana">Gharana</label><input type="text" id="d-gharana" /></div>
-    <div class="field"><label for="d-misc">Miscell info</label><textarea id="d-misc"></textarea></div>
+    <div class="field with-mic"><label for="d-bol">Bol type</label><input type="text" id="d-bol" data-mic-vocab="bol" /></div>
+    <div class="field with-mic"><label for="d-gharana">Gharana</label><input type="text" id="d-gharana" data-mic-vocab="gharana" /></div>
+    <div class="field with-mic"><label for="d-misc">Miscell info</label><textarea id="d-misc" data-mic-vocab="misc"></textarea></div>
 
     <div id="attach-section" hidden>
       <h3 style="font-size:13px; text-transform:uppercase; letter-spacing:.5px; color:var(--muted); margin: 18px 0 4px;">Attachments</h3>
@@ -336,6 +384,24 @@
   </div>
 </div>
 
+<!-- Bol dictionary manager -->
+<div class="modal" id="bol-modal">
+  <div class="panel" style="width: min(460px, 92vw);">
+    <h2>Bol dictionary</h2>
+    <p style="color: var(--muted); font-size: 12px; margin: 0 0 12px;">
+      These are the bols dictation can recognise. Add your own — they persist across restarts.
+    </p>
+    <div style="display:flex; gap:6px; margin-bottom: 12px;">
+      <input type="text" id="bol-new" placeholder="e.g. Trak" style="flex:1; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 4px; padding: 6px 8px;" />
+      <button class="btn" id="bol-add">Add</button>
+    </div>
+    <div id="bol-list" class="bol-list"></div>
+    <div style="display:flex; gap:8px; justify-content:flex-end; margin-top: 12px;">
+      <button class="btn ghost" id="bol-close">Done</button>
+    </div>
+  </div>
+</div>
+
 <!-- Lightbox -->
 <div class="lightbox" id="lightbox">
   <button class="close" id="lb-close">Close ✕</button>
@@ -354,9 +420,13 @@
     apiBase: null,            // resolved API base (origin or user-entered)
     compositions: [],
     types: [],
+    bols: [],
     filter: { types: new Set(), taal: '', speed_group: '', q: '' },
     sort: { key: 'updated_at', dir: 'desc' },
     editing: null,            // composition object when drawer is open (null = new)
+    recog: null,              // active SpeechRecognition instance
+    recogTarget: null,        // input element being dictated into
+    recogBuf: '',             // last interim transcript (to avoid double-inserting)
   };
 
   // ---------- DOM refs ----------
@@ -438,6 +508,185 @@
     document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark'
   ));
   applyTheme(localStorage.getItem('theme') || (matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
+
+  // ---------- Dictation (Web Speech API) ----------
+  // Browser support: Chrome/Edge/Safari. Firefox doesn't support it.
+  // Each 🎤 button is created from data-mic-vocab on its parent .field.
+
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+
+  function levenshtein(a, b) {
+    if (a === b) return 0;
+    if (!a.length) return b.length;
+    if (!b.length) return a.length;
+    const dp = Array.from({length: a.length + 1}, () => new Array(b.length + 1).fill(0));
+    for (let i = 0; i <= a.length; i++) dp[i][0] = i;
+    for (let j = 0; j <= b.length; j++) dp[0][j] = j;
+    for (let i = 1; i <= a.length; i++) {
+      for (let j = 1; j <= b.length; j++) {
+        const cost = a[i-1] === b[j-1] ? 0 : 1;
+        dp[i][j] = Math.min(dp[i-1][j] + 1, dp[i][j-1] + 1, dp[i-1][j-1] + cost);
+      }
+    }
+    return dp[a.length][b.length];
+  }
+
+  function normalise(s) { return s.toLowerCase().replace(/[^a-z0-9]/g, ''); }
+
+  function fuzzyMatch(word, vocab) {
+    const w = normalise(word);
+    if (!w) return null;
+    let best = null, bestDist = Infinity;
+    for (const v of vocab) {
+      const t = normalise(v);
+      if (!t) continue;
+      const d = levenshtein(w, t);
+      if (d < bestDist) { bestDist = d; best = v; }
+    }
+    // Threshold scales with length so short bols need an exact/very-near match.
+    const threshold = Math.max(1, Math.ceil(w.length * 0.4));
+    return bestDist <= threshold ? best : null;
+  }
+
+  // Vocabulary: for bol field it's the seeded + learned bols; for other fields
+  // it's the unique values already typed in that column across existing rows.
+  function vocabFor(field) {
+    if (field === 'bol') return state.bols;
+    const key = { name: 'name', taal: 'taal', speed_group: 'speed_group',
+                  gharana: 'gharana', misc: 'miscell_info' }[field];
+    if (!key) return [];
+    return uniq(state.compositions.map(c => c[key]).filter(Boolean));
+  }
+
+  function makeMicButton(input) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.className = 'mic';
+    btn.textContent = '🎤';
+    btn.title = 'Dictate';
+    btn.addEventListener('click', () => toggleDictation(input, btn));
+    return btn;
+  }
+
+  function attachMicButtons() {
+    document.querySelectorAll('.field.with-mic').forEach((field) => {
+      if (field.querySelector('.mic')) return;        // already attached
+      const input = field.querySelector('input, textarea');
+      if (!input) return;
+      field.appendChild(makeMicButton(input));
+    });
+  }
+
+  function toggleDictation(input, btn) {
+    if (state.recog) { stopDictation(); return; }
+    if (!SR) { toast('Speech recognition not supported in this browser', true); return; }
+    const r = new SR();
+    r.lang = els.dictLang.value || 'en-IN';
+    r.continuous = true;
+    r.interimResults = true;
+    r.maxAlternatives = 1;
+
+    r.onresult = (e) => onSpeechResult(e, input);
+    r.onerror = (e) => { toast('Mic error: ' + (e.error || 'unknown'), true); stopDictation(); };
+    r.onend = () => stopDictation();
+
+    try {
+      r.start();
+      state.recog = r;
+      state.recogTarget = input;
+      btn.classList.add('live');
+      els.dictStatus.textContent = '● listening';
+      els.dictStatus.classList.add('live');
+    } catch (err) {
+      toast('Could not start mic: ' + err.message, true);
+    }
+  }
+
+  function stopDictation() {
+    if (state.recog) { try { state.recog.stop(); } catch (_) {} }
+    state.recog = null;
+    state.recogTarget = null;
+    state.recogBuf = '';
+    document.querySelectorAll('.mic.live').forEach(b => b.classList.remove('live'));
+    els.dictStatus.textContent = '';
+    els.dictStatus.classList.remove('live');
+  }
+
+  function onSpeechResult(e, input) {
+    const field = input.dataset.micVocab || 'misc';
+    const vocab = vocabFor(field);
+    let finalDelta = '';
+    for (let i = e.resultIndex; i < e.results.length; i++) {
+      const result = e.results[i];
+      const text = result[0].transcript.trim();
+      if (result.isFinal) finalDelta += ' ' + text;
+    }
+    if (!finalDelta.trim()) return;
+    // Split into tokens; for each, match against the vocab; unmatched words still pass through.
+    const tokens = finalDelta.trim().split(/\s+/);
+    const out = tokens.map(t => {
+      const m = fuzzyMatch(t, vocab);
+      return m !== null ? m : t;
+    }).join(' ');
+    const sep = input.value && !input.value.endsWith(' ') ? ' ' : '';
+    input.value = input.value + sep + out;
+    // If the user is in the bol field, opportunistically learn new words they spoke.
+    if (field === 'bol') {
+      tokens.forEach(t => {
+        const norm = normalise(t);
+        if (!state.bols.some(b => normalise(b) === norm) && norm) {
+          state.bols.push(t.charAt(0).toUpperCase() + t.slice(1));
+          api('/api/bols', { method: 'POST', body: { name: t } }).catch(() => {});
+        }
+      });
+    }
+  }
+
+  els.dictLang = $('dict-lang');
+  els.dictLang.value = localStorage.getItem('dictLang') || 'en-IN';
+  els.dictLang.addEventListener('change', () => {
+    localStorage.setItem('dictLang', els.dictLang.value);
+    if (state.recog) { stopDictation(); toast('Language changed — click 🎤 to restart'); }
+  });
+  els.dictStatus = $('dict-status');
+  els.btnBols = $('btn-bols');
+  els.btnBols.addEventListener('click', openBolModal);
+  els.bolModal = $('bol-modal');
+  els.bolList = $('bol-list');
+  els.bolNew = $('bol-new');
+  els.bolAdd = $('bol-add');
+  els.bolClose = $('bol-close');
+  els.bolAdd.addEventListener('click', addBolFromInput);
+  els.bolNew.addEventListener('keydown', (e) => { if (e.key === 'Enter') addBolFromInput(); });
+  els.bolClose.addEventListener('click', () => els.bolModal.classList.remove('open'));
+
+  function openBolModal() { renderBolList(); els.bolModal.classList.add('open'); els.bolNew.focus(); }
+  function renderBolList() {
+    els.bolList.innerHTML = '';
+    state.bols.forEach((b) => {
+      const tag = document.createElement('span');
+      tag.className = 'bol';
+      tag.innerHTML = `<span>${escapeHtml(b)}</span><button class="x" title="Remove">×</button>`;
+      tag.querySelector('.x').addEventListener('click', async () => {
+        try { await api('/api/bols/' + encodeURIComponent(b), { method: 'DELETE' }); }
+        catch (err) { toast(err.message, true); return; }
+        state.bols = state.bols.filter(x => x !== b);
+        renderBolList();
+      });
+      els.bolList.appendChild(tag);
+    });
+  }
+  async function addBolFromInput() {
+    const name = els.bolNew.value.trim();
+    if (!name) return;
+    try { await api('/api/bols', { method: 'POST', body: { name } }); }
+    catch (err) { toast(err.message, true); return; }
+    if (!state.bols.includes(name)) state.bols.push(name);
+    state.bols.sort();
+    renderBolList();
+    els.bolNew.value = '';
+    els.bolNew.focus();
+  }
 
   // ---------- Standalone banner ----------
   function showStandaloneBanner() {
@@ -625,6 +874,7 @@
     els.drawer.classList.add('open');
     els.scrim.classList.add('open');
     els.drawer.setAttribute('aria-hidden', 'false');
+    attachMicButtons();
     setTimeout(() => els.dName.focus(), 50);
   }
   function closeDrawer() {
@@ -791,6 +1041,7 @@
 
   // ---------- Load ----------
   async function loadTypes() { state.types = await api('/api/composition_types'); }
+  async function loadBols() { try { state.bols = await api('/api/bols') || []; } catch (_) { state.bols = []; } }
   async function loadCompositions() {
     const params = new URLSearchParams();
     if (state.filter.types.size) params.set('type', [...state.filter.types].join(','));
@@ -805,6 +1056,7 @@
 
   async function boot() {
     await loadTypes();
+    await loadBols();
     await loadCompositions();
     rebuildTypeChips();
     fillTypeSelect();
